@@ -1,0 +1,19 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+RUN npm run build
+
+ENV DB_TYPE=postgres
+ENV DB_HOST=postgres
+ENV DB_PORT=5432
+ENV DB_NAME=apidyn
+ENV DB_USER=dev
+ENV DB_PASSWORD=devpass
+
+CMD ["node", "dist/index.js"]

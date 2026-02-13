@@ -1,0 +1,54 @@
+version: "3.9"
+
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: api-dyn-postgres
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: devpass
+      POSTGRES_DB: apidyn
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  mysql:
+    image: mysql:8
+    container_name: api-dyn-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: apidyn
+      MYSQL_USER: dev
+      MYSQL_PASSWORD: devpass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysqldata:/var/lib/mysql
+
+  app-postgres:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    container_name: api-dyn-app-postgres
+    depends_on:
+      - postgres
+    environment:
+      DB_TYPE: postgres
+    restart: unless-stopped
+
+  app-mysql:
+    build:
+      context: .
+      dockerfile: Dockerfile.mysql
+    container_name: api-dyn-app-mysql
+    depends_on:
+      - mysql
+    environment:
+      DB_TYPE: mysql
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  mysqldata:

@@ -1,0 +1,29 @@
+{
+  "name": "api-dyn",
+  "version": "1.0.0",
+  "description": "creacion dinamica de apis",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Alvar01o/api-dyn.git"
+  },
+  "keywords": ["api", "ia", "automated"],
+  "author": "alvar01omer@gmail.com",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@mikro-orm/core": "^6.6.6",
+    "@mikro-orm/postgresql": "^6.6.6",
+    "pg": "^8.18.0",
+    "reflect-metadata": "^0.2.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "ts-node": "^10.9.2",
+    "@types/node": "^20.0.0"
+  }
+}
