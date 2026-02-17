@@ -11,6 +11,7 @@ export class MysqlConnector extends BaseConnector {
       user: 'dev',
       password: 'devpass',
       dbName: 'apidyn',
+      entities: ['dist/**/*.entity.js'], // 👈 hack requerido
     });
   }
 
