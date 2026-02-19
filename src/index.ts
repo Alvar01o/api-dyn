@@ -1,34 +1,38 @@
 import 'reflect-metadata';
-import { MikroORM } from '@mikro-orm/postgresql';
-import { MikroORM as MysqlORM } from '@mikro-orm/mysql';
+import { PostgresConnector } from './connectors/postgres.connector';
+import { MysqlConnector } from './connectors/mysql.connector';
+import { BaseConnector } from './connectors/base.connector';
 
 async function run() {
   const type = process.env.DB_TYPE;
 
-  if (type === 'postgres') {
-    const orm = await MikroORM.init({
-      host: process.env.DB_HOST,
-      port: Number(process.env.DB_PORT),
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      dbName: process.env.DB_NAME,
-    });
+  let connector: BaseConnector;
 
-    console.log('Connected to PostgreSQL');
-    await orm.close(true);
+  switch (type) {
+    case 'postgres':
+      connector = new PostgresConnector();
+      break;
+
+    case 'mysql':
+      connector = new MysqlConnector();
+      break;
+
+    default:
+      throw new Error(`Unsupported DB type: ${type}`);
   }
 
-  if (type === 'mysql') {
-    const orm = await MysqlORM.init({
-      host: process.env.DB_HOST,
-      port: Number(process.env.DB_PORT),
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      dbName: process.env.DB_NAME,
-    });
+  try {
+    await connector.connect();
 
-    console.log('Connected to MySQL');
-    await orm.close(true);
+    const schema = await connector.loadSchema();
+
+    console.log(JSON.stringify(schema, null, 2));
+
+  } catch (error) {
+    console.error('Error during execution:', error);
+    process.exit(1);
+  } finally {
+    await connector.close();
   }
 }
 

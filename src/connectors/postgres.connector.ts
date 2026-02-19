@@ -5,21 +5,16 @@ import { DatabaseStructure } from '../models/database-structure.model';
 export class PostgresConnector extends BaseConnector {
 
   async connect(): Promise<void> {
-    this.orm = await MikroORM.init({
-      host: 'localhost',
-      port: 5432,
-      user: 'dev',
-      password: 'devpass',
-      dbName: 'apidyn',
-      entities: ['dist/**/*.entity.js'], // 👈 hack requerido
-
-    });
+    this.orm = await this.waitForConnection(() =>
+      MikroORM.init(this.getDbConfig())
+    );
   }
 
-  async loadSchema(): Promise<DatabaseStructure> {
-    const em = this.orm.em.getConnection();
 
-    const tables = await em.execute(`
+  async loadSchema(): Promise<DatabaseStructure> {
+    const connection = this.orm.em.getConnection();
+
+    const tables = await connection.execute(`
       SELECT table_name
       FROM information_schema.tables
       WHERE table_schema = 'public'
@@ -30,13 +25,13 @@ export class PostgresConnector extends BaseConnector {
     for (const t of tables) {
       const tableName = t.table_name;
 
-      const columns = await em.execute(`
+      const columns = await connection.execute(`
         SELECT column_name, data_type, is_nullable, column_default
         FROM information_schema.columns
         WHERE table_name = '${tableName}'
       `);
 
-      const fks = await em.execute(`
+      const fks = await connection.execute(`
         SELECT
           kcu.column_name,
           ccu.table_name AS referenced_table,
@@ -58,7 +53,7 @@ export class PostgresConnector extends BaseConnector {
           type: c.data_type,
           nullable: c.is_nullable === 'YES',
           default: c.column_default,
-          isPrimary: false, // podemos mejorarlo luego
+          isPrimary: false,
         })),
         foreignKeys: fks.map((fk: any) => ({
           columnName: fk.column_name,
@@ -66,7 +61,7 @@ export class PostgresConnector extends BaseConnector {
           referencedColumn: fk.referenced_column,
           constraintName: fk.constraint_name,
         })),
-        indexes: [] // luego agregamos introspección de índices
+        indexes: [],
       });
     }
 
@@ -74,6 +69,8 @@ export class PostgresConnector extends BaseConnector {
   }
 
   async close(): Promise<void> {
-    await this.orm.close(true);
+    if (this.orm) {
+      await this.orm.close(true);
+    }
   }
 }
