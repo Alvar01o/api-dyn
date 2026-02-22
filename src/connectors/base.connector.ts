@@ -3,7 +3,7 @@ import { DatabaseStructure } from '../models/database-structure.model';
 
 export abstract class BaseConnector {
   protected orm!: MikroORM;
-  protected async waitForConnection(initFn: () => Promise<any>, retries = 10, delay = 2000) {
+  protected async waitForConnection(initFn: () => Promise<any>, retries = 10, delay = 3000) {
     for (let i = 0; i < retries; i++) {
       try {
         return await initFn();
@@ -23,7 +23,7 @@ export abstract class BaseConnector {
       DB_PASSWORD,
       DB_NAME,
     } = process.env;
-
+    console.log('Current config', DB_HOST, DB_NAME, DB_PASSWORD, DB_PORT, DB_USER)
     if (!DB_HOST || !DB_PORT || !DB_USER || !DB_PASSWORD || !DB_NAME) {
       throw new Error(
         'Missing required database environment variables: ' +

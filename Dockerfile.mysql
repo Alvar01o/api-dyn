@@ -4,16 +4,13 @@ WORKDIR /app
 
 COPY package*.json ./
 RUN npm install
-
 COPY . .
-
-RUN npm run build
-
 ENV DB_TYPE=mysql
 ENV DB_HOST=mysql
 ENV DB_PORT=3306
 ENV DB_NAME=apidyn
 ENV DB_USER=dev
 ENV DB_PASSWORD=devpass
+RUN npm run build
 
 CMD ["node", "dist/index.js"]

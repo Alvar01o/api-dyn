@@ -4,7 +4,7 @@ services:
     image: postgres:9.3
     container_name: api-dyn-postgres
     environment:
-      POSTGRES_USER: postgres
+      POSTGRES_USER: dev
       POSTGRES_PASSWORD: devpass
       POSTGRES_DB: apidyn
     ports:

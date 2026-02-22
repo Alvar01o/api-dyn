@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import 'dotenv/config';   // 👈 primero
 import { PostgresConnector } from './connectors/postgres.connector';
 import { MysqlConnector } from './connectors/mysql.connector';
 import { BaseConnector } from './connectors/base.connector';
@@ -22,11 +23,15 @@ async function run() {
   }
 
   try {
+    console.log('Before connect');
     await connector.connect();
+    console.log('Connected');
 
+    console.log('Before loadSchema');
     const schema = await connector.loadSchema();
+    console.log('Schema loaded');
 
-    console.log(JSON.stringify(schema, null, 2));
+    console.log('Tables count:', schema.tables.length);
 
   } catch (error) {
     console.error('Error during execution:', error);
