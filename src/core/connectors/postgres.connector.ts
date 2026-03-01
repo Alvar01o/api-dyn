@@ -38,7 +38,7 @@ export class PostgresConnector extends BaseConnector {
       await client.end();
     }
   }
-  
+
   async createDatabase(dbName: string): Promise<void> {
     const client = this.makeClient('postgres');
     await client.connect();
@@ -50,7 +50,7 @@ export class PostgresConnector extends BaseConnector {
     }
   }
 
-    async dropDatabase(dbName: string): Promise<void> {
+  async dropDatabase(dbName: string): Promise<void> {
     const client = this.makeClient('postgres');
     await client.connect();
     try {
@@ -76,7 +76,7 @@ export class PostgresConnector extends BaseConnector {
       if (useTx) await client.query('COMMIT');
     } catch (e) {
       if (useTx) {
-        try { await client.query('ROLLBACK'); } catch {}
+        try { await client.query('ROLLBACK'); } catch { }
       }
       throw e;
     } finally {
