@@ -3,7 +3,10 @@ import { BaseConnector } from './base.connector';
 import { DatabaseStructure } from '../models/database-structure.model';
 import { Client } from 'pg';
 import fs from 'fs';
-
+import { spawn } from 'child_process';
+function escapeIdentifier(name: string) {
+  return `"${name.replace(/"/g, '""')}"`;
+}
 function boolEnv(name: string, def = false) {
   const v = process.env[name];
   if (v === undefined) return def;
@@ -43,8 +46,7 @@ export class PostgresConnector extends BaseConnector {
     const client = this.makeClient('postgres');
     await client.connect();
     try {
-      // No hay IF NOT EXISTS portable; ya chequeamos antes
-      await client.query(`CREATE DATABASE "${dbName}"`);
+      await client.query(`CREATE DATABASE ${escapeIdentifier(dbName)}`);
     } finally {
       await client.end();
     }
@@ -54,16 +56,42 @@ export class PostgresConnector extends BaseConnector {
     const client = this.makeClient('postgres');
     await client.connect();
     try {
-      // FORZAMOS desconexión para poder dropear si alguien quedó conectado
-      await client.query(`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()`, [dbName]);
-      await client.query(`DROP DATABASE "${dbName}"`);
+      await client.query(
+        `SELECT pg_terminate_backend(pid)
+         FROM pg_stat_activity
+         WHERE datname = $1 AND pid <> pg_backend_pid()`,
+        [dbName]
+      );
+
+      await client.query(`DROP DATABASE ${escapeIdentifier(dbName)}`);
     } finally {
       await client.end();
     }
   }
 
-
   async applySchema(dbName: string, filePath: string): Promise<void> {
+    // PGPASSWORD por env para no prompt
+    await new Promise<void>((resolve, reject) => {
+      const env = { ...process.env, PGPASSWORD: this.password };
+
+      const args = [
+        `-h`, this.host,
+        `-p`, String(this.port),
+        `-U`, this.user,
+        `-d`, dbName,
+        `-v`, 'ON_ERROR_STOP=1', // falla si hay error
+      ];
+
+      const proc = spawn('psql', args, { stdio: ['pipe', 'pipe', 'pipe'], env });
+
+      proc.on('error', reject);
+      proc.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`psql exited with code ${code}`))));
+
+      fs.createReadStream(filePath).pipe(proc.stdin);
+    });
+  }
+
+  async applySchemaFile(dbName: string, filePath: string): Promise<void> {
     const sql = await fs.readFile(filePath, 'utf8');
     const client = this.makeClient(dbName);
     await client.connect();

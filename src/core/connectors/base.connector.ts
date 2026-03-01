@@ -63,6 +63,7 @@ export abstract class BaseConnector {
   abstract databaseExists(dbName: string): Promise<boolean>;
   abstract dropDatabase(dbName: string): Promise<void>;
   abstract applySchema(dbName: string, filePath: string): Promise<void>;
+  
   async close(): Promise<void> {
     if (this.orm) {
       await this.orm.close(true);

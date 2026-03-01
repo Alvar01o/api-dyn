@@ -3,7 +3,10 @@ import { BaseConnector } from './base.connector';
 import { DatabaseStructure } from '../models/database-structure.model';
 import mysql from 'mysql2/promise';
 import fs from 'fs';
-
+import { spawn } from 'child_process';
+function escapeIdentifier(name: string) {
+  return `\`${name}\``;
+}
 function boolEnv(name: string, def = false) {
   const v = process.env[name];
   if (v === undefined) return def;
@@ -48,25 +51,44 @@ export class MysqlConnector extends BaseConnector {
     }
   }
   async createDatabase(dbName: string): Promise<void> {
-    const c = await this.serverConn();
+    const conn = await this.serverConn();
     try {
-      // dbName ya viene validado por regex estricta, igual usamos quoting seguro
-      await c.query(`CREATE DATABASE \`${dbName}\``);
+      await conn.query(`CREATE DATABASE ${escapeIdentifier(dbName)}`);
     } finally {
-      await c.end();
+      await conn.end();
     }
   }
 
   async dropDatabase(dbName: string): Promise<void> {
-    const c = await this.serverConn();
+    const conn = await this.serverConn();
     try {
-      await c.query(`DROP DATABASE \`${dbName}\``);
+      await conn.query(`DROP DATABASE ${escapeIdentifier(dbName)}`);
     } finally {
-      await c.end();
+      await conn.end();
     }
   }
-
   async applySchema(dbName: string, filePath: string): Promise<void> {
+    // Streaming via mysql client (mejor para archivos gigantes)
+    await new Promise<void>((resolve, reject) => {
+      const args = [
+        `-h`, this.host,
+        `-P`, String(this.port),
+        `-u`, this.user,
+        `-p${this.password}`,
+        dbName,
+      ];
+
+      const proc = spawn('mysql', args, { stdio: ['pipe', 'pipe', 'pipe'] });
+
+      proc.stderr.on('data', (d) => {});
+      proc.on('error', reject);
+      proc.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`mysql exited with code ${code}`))));
+
+      fs.createReadStream(filePath).pipe(proc.stdin);
+    });
+  }
+
+  async applySchemaFile(dbName: string, filePath: string): Promise<void> {
     const sql = await fs.readFile(filePath, 'utf8');
     const c = await this.dbConn(dbName);
 
