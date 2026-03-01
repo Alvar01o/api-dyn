@@ -1,7 +1,14 @@
 import { MikroORM } from '@mikro-orm/postgresql';
 import { BaseConnector } from './base.connector';
 import { DatabaseStructure } from '../models/database-structure.model';
+import { Client } from 'pg';
+import fs from 'fs';
 
+function boolEnv(name: string, def = false) {
+  const v = process.env[name];
+  if (v === undefined) return def;
+  return v === 'true';
+}
 export class PostgresConnector extends BaseConnector {
 
   async connect(): Promise<void> {
@@ -10,6 +17,72 @@ export class PostgresConnector extends BaseConnector {
     );
   }
 
+  private makeClient(database: string) {
+    return new Client({
+      host: this.host,
+      port: this.port,
+      user: this.user,
+      password: this.password,
+      database,
+      statement_timeout: Number(process.env.SCHEMA_STATEMENT_TIMEOUT_MS ?? 60000),
+      connectionTimeoutMillis: Number(process.env.SCHEMA_CONNECT_TIMEOUT_MS ?? 10000),
+    } as any);
+  }
+  async databaseExists(dbName: string): Promise<boolean> {
+    const client = this.makeClient('postgres');
+    await client.connect();
+    try {
+      const r = await client.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [dbName]);
+      return r.rowCount > 0;
+    } finally {
+      await client.end();
+    }
+  }
+  
+  async createDatabase(dbName: string): Promise<void> {
+    const client = this.makeClient('postgres');
+    await client.connect();
+    try {
+      // No hay IF NOT EXISTS portable; ya chequeamos antes
+      await client.query(`CREATE DATABASE "${dbName}"`);
+    } finally {
+      await client.end();
+    }
+  }
+
+    async dropDatabase(dbName: string): Promise<void> {
+    const client = this.makeClient('postgres');
+    await client.connect();
+    try {
+      // FORZAMOS desconexión para poder dropear si alguien quedó conectado
+      await client.query(`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()`, [dbName]);
+      await client.query(`DROP DATABASE "${dbName}"`);
+    } finally {
+      await client.end();
+    }
+  }
+
+
+  async applySchema(dbName: string, filePath: string): Promise<void> {
+    const sql = await fs.readFile(filePath, 'utf8');
+    const client = this.makeClient(dbName);
+    await client.connect();
+
+    const useTx = boolEnv('SCHEMA_USE_TRANSACTION', true);
+
+    try {
+      if (useTx) await client.query('BEGIN');
+      await client.query(sql); // permite múltiples statements en query simple
+      if (useTx) await client.query('COMMIT');
+    } catch (e) {
+      if (useTx) {
+        try { await client.query('ROLLBACK'); } catch {}
+      }
+      throw e;
+    } finally {
+      await client.end();
+    }
+  }
   async loadSchema(): Promise<DatabaseStructure> {
     const connection = this.orm.em.getConnection();
 

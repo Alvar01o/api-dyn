@@ -1,8 +1,8 @@
 import 'reflect-metadata';
 import 'dotenv/config';   // 👈 primero
-import { PostgresConnector } from './connectors/postgres.connector';
-import { MysqlConnector } from './connectors/mysql.connector';
-import { BaseConnector } from './connectors/base.connector';
+import { PostgresConnector } from './core/connectors/postgres.connector';
+import { MysqlConnector } from './core/connectors/mysql.connector';
+import { BaseConnector } from './core/connectors/base.connector';
 
 async function run() {
   const type = process.env.DB_TYPE;

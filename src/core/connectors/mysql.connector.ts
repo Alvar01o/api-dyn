@@ -1,15 +1,90 @@
 import { MikroORM } from '@mikro-orm/mysql';
 import { BaseConnector } from './base.connector';
 import { DatabaseStructure } from '../models/database-structure.model';
+import mysql from 'mysql2/promise';
+import fs from 'fs';
 
+function boolEnv(name: string, def = false) {
+  const v = process.env[name];
+  if (v === undefined) return def;
+  return v === 'true';
+}
 export class MysqlConnector extends BaseConnector {
-
+ private async serverConn() {
+    return mysql.createConnection({
+      host: this.host,
+      port: this.port,
+      user: this.user,
+      password: this.password,
+      // multipleStatements solo se requiere para ejecutar el .sql con varios statements
+      multipleStatements: true,
+    });
+  }
+  private async dbConn(dbName: string) {
+    return mysql.createConnection({
+      host: this.host,
+      port: this.port,
+      user: this.user,
+      password: this.password,
+      database: dbName,
+      multipleStatements: true,
+    });
+  }
   async connect(): Promise<void> {
     this.orm = await this.waitForConnection(() =>
       MikroORM.init(this.getDbConfig())
     );
   }
+    async databaseExists(dbName: string): Promise<boolean> {
+    const c = await this.serverConn();
+    try {
+      const [rows] = await c.query<any[]>(
+        `SELECT SCHEMA_NAME as name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`,
+        [dbName]
+      );
+      return rows.length > 0;
+    } finally {
+      await c.end();
+    }
+  }
+async createDatabase(dbName: string): Promise<void> {
+    const c = await this.serverConn();
+    try {
+      // dbName ya viene validado por regex estricta, igual usamos quoting seguro
+      await c.query(`CREATE DATABASE \`${dbName}\``);
+    } finally {
+      await c.end();
+    }
+  }
 
+  async dropDatabase(dbName: string): Promise<void> {
+    const c = await this.serverConn();
+    try {
+      await c.query(`DROP DATABASE \`${dbName}\``);
+    } finally {
+      await c.end();
+    }
+  }
+
+  async applySchema(dbName: string, filePath: string): Promise<void> {
+    const sql = await fs.readFile(filePath, 'utf8');
+    const c = await this.dbConn(dbName);
+
+    const useTx = boolEnv('SCHEMA_USE_TRANSACTION', true);
+
+    try {
+      if (useTx) await c.beginTransaction();
+      await c.query(sql);
+      if (useTx) await c.commit();
+    } catch (e) {
+      if (useTx) {
+        try { await c.rollback(); } catch {}
+      }
+      throw e;
+    } finally {
+      await c.end();
+    }
+  }
 
 async loadSchema(): Promise<DatabaseStructure> {
   const connection = this.orm.em.getConnection();

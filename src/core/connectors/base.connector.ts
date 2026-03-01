@@ -3,6 +3,19 @@ import { DatabaseStructure } from '../models/database-structure.model';
 
 export abstract class BaseConnector {
   protected orm!: MikroORM;
+
+  protected host: string;
+  protected port: number;
+  protected user: string;
+  protected password: string;
+
+  constructor() {
+    this.host = process.env.DB_HOST!;
+    this.port = Number(process.env.DB_PORT);
+    this.user = process.env.DB_USER!;
+    this.password = process.env.DB_PASSWORD!;
+  }
+
   protected async waitForConnection(initFn: () => Promise<any>, retries = 10, delay = 3000) {
     for (let i = 0; i < retries; i++) {
       try {
@@ -46,7 +59,10 @@ export abstract class BaseConnector {
 
   abstract connect(): Promise<void>;
   abstract loadSchema(): Promise<DatabaseStructure>;
-
+  abstract createDatabase(dbName: string): Promise<void>;
+  abstract databaseExists(dbName: string): Promise<boolean>;
+  abstract dropDatabase(dbName: string): Promise<void>;
+  abstract applySchema(dbName: string, filePath: string): Promise<void>;
   async close(): Promise<void> {
     if (this.orm) {
       await this.orm.close(true);

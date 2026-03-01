@@ -23,13 +23,21 @@
     "@mikro-orm/core": "^6.6.6",
     "@mikro-orm/mysql": "^6.6.6",
     "@mikro-orm/postgresql": "^6.6.6",
-    "mysql2": "^3.17.1",
-    "pg": "^8.18.0",
-    "reflect-metadata": "^0.2.2"
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "multer": "^2.1.0",
+    "mysql2": "^3.18.2",
+    "pg": "^8.19.0",
+    "reflect-metadata": "^0.2.2",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^20.19.35",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.0"
+    "typescript": "^5.9.3"
   }
 }
